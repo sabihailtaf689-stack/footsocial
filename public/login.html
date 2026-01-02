@@ -1,12 +1,52 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Login</title><meta name="viewport" content="width=device-width,initial-scale=1"><link href="/style.css" rel="stylesheet"></head><body>
-<div class="container"><div class="card"><h3>Login</h3>
-<form id="f"><div style="margin-bottom:8px"><input id="u" class="input" placeholder="username"></div><div style="margin-bottom:8px"><input id="p" type="password" class="input" placeholder="password"></div>
-<button class="btn" type="submit">Login</button></form>
-<div style="margin-top:10px" class="small muted">No account? <a href="/register.html">Register</a></div>
-</div></div>
-<script src="/app.js"></script>
-<script>
-document.getElementById('f').addEventListener('submit', async e=>{ e.preventDefault(); const u=document.getElementById('u').value; const p=document.getElementById('p').value; try{ const r = await postJSON('/api/login', { username: u, password: p }); const j = await r.json(); if(j.token){ setToken(j.token); window.location = '/'; } else alert(JSON.stringify(j)); }catch(e){alert('request failed')} });
-</script>
-</body></html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Login</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link href="style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h3>Login</h3>
+        <form id="f">
+          <div style="margin-bottom: 8px">
+            <input id="u" class="input" placeholder="username" />
+          </div>
+          <div style="margin-bottom: 8px">
+            <input id="p" type="password" class="input" placeholder="password" />
+          </div>
+          <button class="btn" type="submit">Login</button>
+        </form>
+        <div style="margin-top: 10px" class="small muted">
+          No account? <a href="register.html">Register</a>
+        </div>
+      </div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+      document.getElementById('f').addEventListener('submit', async e => {
+        e.preventDefault();
+        const u = document.getElementById('u').value;
+        const p = document.getElementById('p').value;
+        try {
+          const r = await postJSON('/api/login', { username: u, password: p });
+          if (r.status === 0) {
+            alert('Backend not available. Cannot login at this time.');
+            return;
+          }
+          const j = await r.json();
+          if (j.token) {
+            setToken(j.token);
+            window.location = './';
+          } else {
+            alert(JSON.stringify(j));
+          }
+        } catch (e) {
+          alert('Request failed. Backend may not be available.');
+        }
+      });
+    </script>
+  </body>
+</html>

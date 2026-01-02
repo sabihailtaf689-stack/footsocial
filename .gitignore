@@ -1,11 +1,19 @@
 node_modules/
-public/uploads/
 .env
+.env.local
 .DS_Store
+*.log
 .vscode/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-coverage/
 .idea/
 dist/
+build/
+coverage/
+.vercel/
+# Test and backup files
+test*.js
+*_fixed.js
+restore_*.js
+resp.html
+# User uploads
+public/uploads/*
+!public/uploads/.gitkeep

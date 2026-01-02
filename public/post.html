@@ -1,66 +1,104 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>New Post</title><meta name="viewport" content="width=device-width,initial-scale=1"><link href="/style.css" rel="stylesheet"></head><body>
-<div class="container"><div class="card"><h3>Create Post / Upload</h3>
-<form id="f" enctype="multipart/form-data">
-	<div style="margin-bottom:8px">
-		<label class="small muted">Photo or Video</label>
-		<input id="media" class="input" type="file" accept="image/*,video/*">
-	</div>
-	<div id="preview" style="margin-bottom:8px"></div>
-	<div style="margin-bottom:8px"><textarea id="content" class="input" placeholder="Write a caption" rows="4"></textarea></div>
-	<div style="margin-bottom:8px" class="small muted">Or provide external clip URL (optional)</div>
-	<div style="margin-bottom:8px"><input id="clipUrl" class="input" placeholder="external clip URL (optional)"></div>
-	<button class="btn" type="submit">Post</button>
-</form>
-<div style="margin-top:10px" class="small muted"><a href="/">Back to feed</a></div>
-</div></div>
-<script src="/app.js"></script>
-<script>
-const mediaInput = document.getElementById('media');
-const preview = document.getElementById('preview');
-mediaInput.addEventListener('change', ()=>{
-	preview.innerHTML = '';
-	const f = mediaInput.files && mediaInput.files[0]; if(!f) return;
-	const url = URL.createObjectURL(f);
-	if(f.type.startsWith('video/')){
-		preview.innerHTML = `<video controls style="max-width:100%"> <source src="${url}"></video>`;
-	} else {
-		preview.innerHTML = `<img src="${url}" style="max-width:100%">`;
-	}
-});
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>New Post</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link href="style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h3>Create Post / Upload</h3>
+        <form id="f" enctype="multipart/form-data">
+          <div style="margin-bottom: 8px">
+            <label class="small muted">Photo or Video</label>
+            <input id="media" class="input" type="file" accept="image/*,video/*" />
+          </div>
+          <div id="preview" style="margin-bottom: 8px"></div>
+          <div style="margin-bottom: 8px">
+            <textarea id="content" class="input" placeholder="Write a caption" rows="4"></textarea>
+          </div>
+          <div style="margin-bottom: 8px" class="small muted">
+            Or provide external clip URL (optional)
+          </div>
+          <div style="margin-bottom: 8px">
+            <input id="clipUrl" class="input" placeholder="external clip URL (optional)" />
+          </div>
+          <button class="btn" type="submit">Post</button>
+        </form>
+        <div style="margin-top: 10px" class="small muted"><a href="./">Back to feed</a></div>
+      </div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+      const mediaInput = document.getElementById('media');
+      const preview = document.getElementById('preview');
+      mediaInput.addEventListener('change', () => {
+        preview.innerHTML = '';
+        const f = mediaInput.files && mediaInput.files[0];
+        if (!f) return;
+        const url = URL.createObjectURL(f);
+        if (f.type.startsWith('video/')) {
+          preview.innerHTML = `<video controls style="max-width:100%"> <source src="${url}"></video>`;
+        } else {
+          preview.innerHTML = `<img src="${url}" style="max-width:100%">`;
+        }
+      });
 
-document.getElementById('f').addEventListener('submit', async e=>{
-	e.preventDefault();
-	if(!token()){ alert('login required'); return; }
-	try{
-		const fd = new FormData();
-		const f = mediaInput.files && mediaInput.files[0];
-		const content = document.getElementById('content').value || '';
-		const clipUrl = document.getElementById('clipUrl').value || '';
+      document.getElementById('f').addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!token()) {
+          alert('login required');
+          return;
+        }
+        try {
+          const fd = new FormData();
+          const f = mediaInput.files && mediaInput.files[0];
+          const content = document.getElementById('content').value || '';
+          const clipUrl = document.getElementById('clipUrl').value || '';
 
-		let finalClip = clipUrl || '';
-		let finalThumb = '';
+          let finalClip = clipUrl || '';
+          let finalThumb = '';
 
-		// If a file is selected and Cloudinary is configured, upload directly to Cloudinary
-		if(f){
-			try{
-				const cloud = await uploadToCloudinary(f);
-				// Cloudinary returns secure_url and resource_type
-				finalClip = cloud.secure_url || finalClip;
-				if(cloud.resource_type === 'image') finalThumb = cloud.secure_url;
-				else if(cloud.resource_type === 'video'){
-					finalClip = cloud.secure_url;
-					// Cloudinary can generate a derived image URL for video thumb; use the public_id
-					if(cloud.public_id) finalThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/video/upload/${cloud.public_id}.jpg`;
-				}
-			}catch(err){ console.warn('Cloudinary upload failed', err); alert('Upload failed: '+(err && err.message)); return; }
-		}
+          // If a file is selected and Cloudinary is configured, upload directly to Cloudinary
+          if (f) {
+            try {
+              const cloud = await uploadToCloudinary(f);
+              // Cloudinary returns secure_url and resource_type
+              finalClip = cloud.secure_url || finalClip;
+              if (cloud.resource_type === 'image') finalThumb = cloud.secure_url;
+              else if (cloud.resource_type === 'video') {
+                finalClip = cloud.secure_url;
+                // Cloudinary can generate a derived image URL for video thumb; use the public_id
+                if (cloud.public_id)
+                  finalThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD}/video/upload/${cloud.public_id}.jpg`;
+              }
+            } catch (err) {
+              console.warn('Cloudinary upload failed', err);
+              alert('Upload failed: ' + (err && err.message));
+              return;
+            }
+          }
 
-		const payload = { content, clipUrl: finalClip, thumbnailUrl: finalThumb };
-		const t = token();
-		const r = await fetch('/api/post', { method: 'POST', headers: Object.assign({'Content-Type':'application/json'}, t?{Authorization:t}:{}) , body: JSON.stringify(payload) });
-		if(r.ok){ alert('Posted'); window.location = '/'; } else { const j = await r.json(); alert('Error: '+(j && j.error)||r.status); }
-	}catch(e){ alert('request failed'); }
-});
-</script>
-</body></html>
+          const payload = { content, clipUrl: finalClip, thumbnailUrl: finalThumb };
+          const t = token();
+          const r = await postJSON('/api/post', payload, true);
+          if (r.status === 0) {
+            alert('Backend not available. Cannot post at this time.');
+            return;
+          }
+          if (r.ok) {
+            alert('Posted');
+            window.location = './';
+          } else {
+            const j = await r.json();
+            alert('Error: ' + ((j && j.error) || r.status));
+          }
+        } catch (e) {
+          alert('Request failed. Backend may not be available.');
+        }
+      });
+    </script>
+  </body>
+</html>
