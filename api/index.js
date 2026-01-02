@@ -2,10 +2,10 @@
 // This file is used by Vercel to handle API routes
 const app = require('../server.js');
 
-// Export handler function for Vercel
-// Vercel will call this function for all /api/* routes
-// The app is already exported from server.js, but we need to ensure it's properly handled
+// Export handler for Vercel serverless functions
+// Vercel passes req and res, but we need to ensure the path is correct
 module.exports = (req, res) => {
-  // Vercel passes the request directly to the Express app
+  // Vercel rewrites /api/* to this function, so the original URL is preserved
+  // The Express app expects routes like /api/register, which matches
   return app(req, res);
 };
