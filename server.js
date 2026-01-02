@@ -10,10 +10,18 @@ const { Server: IOServer } = require('socket.io');
 const fs = require('fs');
 const multer = require('multer');
 // image/video processing
-const sharp = require('sharp');
-const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-const ffmpeg = require('fluent-ffmpeg');
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+// Image/video processing - optional in serverless environments
+let sharp, ffmpeg, ffmpegInstaller;
+try {
+  sharp = require('sharp');
+  ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+  ffmpeg = require('fluent-ffmpeg');
+  if (ffmpegInstaller && ffmpegInstaller.path) {
+    ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+  }
+} catch (e) {
+  console.warn('Media processing libraries not available:', e.message);
+}
 
 const app = express();
 app.use(cors());
@@ -320,28 +328,41 @@ app.post('/api/post', auth, upload.single('media'), async (req, res) => {
       if (mime.startsWith('video/')) {
         // video: set clip, and generate a jpg thumbnail at 1s
         clip = uploadedWebPath;
-        const thumbFilename = 'thumb-' + req.file.filename + '.jpg';
-        await new Promise((resolve, reject) => {
-          ffmpeg(inputPath)
-            .screenshots({
-              timestamps: ['1'],
-              filename: thumbFilename,
-              folder: uploadsDir,
-              size: '640x?'
-            })
-            .on('end', resolve)
-            .on('error', reject);
-        });
-        thumb = '/uploads/' + thumbFilename;
+        if (ffmpeg) {
+          try {
+            const thumbFilename = 'thumb-' + req.file.filename + '.jpg';
+            await new Promise((resolve, reject) => {
+              ffmpeg(inputPath)
+                .screenshots({
+                  timestamps: ['1'],
+                  filename: thumbFilename,
+                  folder: uploadsDir,
+                  size: '640x?'
+                })
+                .on('end', resolve)
+                .on('error', reject);
+            });
+            thumb = '/uploads/' + thumbFilename;
+          } catch (e) {
+            console.warn('ffmpeg thumbnail generation failed:', e.message);
+            thumb = uploadedWebPath;
+          }
+        } else {
+          thumb = uploadedWebPath;
+        }
       } else if (mime.startsWith('image/')) {
         // image: create a resized jpeg thumbnail
-        const outFilename = 'thumb-' + req.file.filename + '.jpg';
-        const outPath = path.join(uploadsDir, outFilename);
-        try {
-          await sharp(inputPath).resize({ width: 1080 }).jpeg({ quality: 82 }).toFile(outPath);
-          thumb = '/uploads/' + outFilename;
-        } catch (e) {
-          console.warn('sharp resize failed', e && e.message);
+        if (sharp) {
+          try {
+            const outFilename = 'thumb-' + req.file.filename + '.jpg';
+            const outPath = path.join(uploadsDir, outFilename);
+            await sharp(inputPath).resize({ width: 1080 }).jpeg({ quality: 82 }).toFile(outPath);
+            thumb = '/uploads/' + outFilename;
+          } catch (e) {
+            console.warn('sharp resize failed', e && e.message);
+            thumb = uploadedWebPath;
+          }
+        } else {
           thumb = uploadedWebPath;
         }
       } else {
@@ -807,7 +828,12 @@ if (require.main === module) {
 // Export app for Vercel serverless, but also start server if running directly
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => console.log(`FootSocial running → http://localhost:${PORT}`));
+  if (server) {
+    server.listen(PORT, () => console.log(`FootSocial running → http://localhost:${PORT}`));
+  } else {
+    // Fallback if server wasn't created (shouldn't happen, but safety check)
+    app.listen(PORT, () => console.log(`FootSocial running → http://localhost:${PORT}`));
+  }
 }
 
 // Export for Vercel serverless
