@@ -4,4 +4,9 @@ const app = require('../server.js');
 
 // Export handler for Vercel serverless functions
 // Vercel rewrites /api/* to this function, preserving the original URL path
-module.exports = app;
+// Express apps handle responses via res.send(), res.json(), etc., not return values
+// So we call app(req, res) without returning anything
+module.exports = (req, res) => {
+  app(req, res);
+  // Don't return - Express handles the response asynchronously
+};
