@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Moderation</title><meta name="viewport" content="width=device-width,initial-scale=1"><link href="/style.css" rel="stylesheet"></head><body>
+<div class="container"><div class="header"><div class="logo">Moderation</div><div class="user"></div></div>
+<div id="mods"></div>
+</div>
+<script src="/app.js"></script>
+<script>
+async function load(){ const r = await getJSON('/api/moderation/comments', true); if(!r.ok){ document.getElementById('mods').innerHTML = '<div class="card muted">Admins only</div>'; return; } const j = await r.json(); if(!j.length){ document.getElementById('mods').innerHTML = '<div class="card muted">No reported comments</div>'; return; } document.getElementById('mods').innerHTML = j.map(c=>`<div class="card"><div style="font-weight:700">${c.user.username} • ${c.reportCount} reports</div><div class="small muted">${new Date(c.createdAt).toLocaleString()}</div><div style="margin-top:6px">${c.text}</div><div style="margin-top:8px">${(c.reports||[]).map(r=>`<div class="small">by ${r.user} — ${r.reason||''}</div>`).join('')}</div><div style="margin-top:8px"><button class="btn" onclick="act('${c._id}','remove')">Remove</button> <button class="btn" onclick="act('${c._id}','restore')">Restore</button></div></div>`).join(''); }
+async function act(id,a){ const r = await postJSON('/api/moderation/comment/'+encodeURIComponent(id)+'/action',{ action: a }, true); if(r.ok) load(); else alert('failed'); }
+load(); updateHeader();
+</script>
+</body></html>

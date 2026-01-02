@@ -1,0 +1,11 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Leaderboard</title><meta name="viewport" content="width=device-width,initial-scale=1"><link href="/style.css" rel="stylesheet"></head><body>
+<div class="container"><div class="header"><div class="logo">Leaderboard</div><div><a href="/">Feed</a></div></div>
+<div id="board"></div>
+</div>
+<script src="/app.js"></script>
+<script>
+async function load(){ try{ const r = await getJSON('/api/leaderboard'); const j = await r.json(); const el = document.getElementById('board'); if(!j.length) el.innerHTML = '<div class="card muted">No users</div>'; else el.innerHTML = j.map(u=>`<div class="card"><strong>${u.username}</strong><div class="small muted">${u.reputation||0} pts</div></div>`).join(''); }catch(e){document.getElementById('board').textContent='error'} }
+load(); updateHeader();
+</script>
+</body></html>

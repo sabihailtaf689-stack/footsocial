@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Followers</title><meta name="viewport" content="width=device-width,initial-scale=1"><link href="/style.css" rel="stylesheet"></head><body>
+<div class="container"><div class="header"><div class="logo">Followers</div><div class="user"></div></div>
+<div id="lists"></div>
+</div>
+<script src="/app.js"></script>
+<script>
+async function load(){ const params=new URLSearchParams(location.search); const user = params.get('user'); if(!user){ document.getElementById('lists').innerHTML='<div class="card muted">No user specified</div>'; return; }
+ const r = await getJSON('/api/user/'+encodeURIComponent(user)); if(!r.ok){ document.getElementById('lists').innerHTML='<div class="card muted">User not found</div>'; return; } const info = await r.json(); const id = info.id; const f = await getJSON('/api/user/'+encodeURIComponent(id)+'/followers'); const g = await getJSON('/api/user/'+encodeURIComponent(id)+'/following'); const followers = f.ok?await f.json():[]; const following = g.ok?await g.json():[]; document.getElementById('lists').innerHTML = `<div class="card"><h4>Followers (${followers.length})</h4>${followers.map(u=>`<div style="padding:6px 0">${u.username}</div>`).join('')}</div><div class="card"><h4>Following (${following.length})</h4>${following.map(u=>`<div style="padding:6px 0">${u.username}</div>`).join('')}</div>`; updateHeader(); }
+load();
+</script>
+</body></html>

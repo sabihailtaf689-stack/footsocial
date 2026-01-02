@@ -1,0 +1,55 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>FootSocial — Feed</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="/style.css" rel="stylesheet">
+</head><body>
+<div class="container">
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:12px"><div class="logo">⚽ FootSocial</div><a href="/post.html">New Post</a><a href="/leaderboard.html">Leaderboard</a></div>
+    <div class="user"></div>
+  </div>
+  <div style="margin-top:16px" id="status" class="small muted">loading…</div>
+  <div id="feed"></div>
+</div>
+<script src="/app.js"></script>
+<script>
+async function loadFeed(){ const el = document.getElementById('feed'); el.innerHTML = '';
+  try{
+    const r = await getJSON('/api/feed', true);
+    if(!r.ok){ document.getElementById('status').textContent = 'Feed requires login — please login or register.'; return; }
+    const posts = await r.json(); document.getElementById('status').textContent = '';
+    if(!posts.length) { el.innerHTML = '<div class="card muted">No posts yet.</div>'; return; }
+    posts.forEach(p => { el.insertAdjacentHTML('beforeend', renderPost(p)); });
+        // attach comment toggles per post
+        document.querySelectorAll('[data-comment-toggle]').forEach(btn=>{ btn.addEventListener('click', ()=>{ const id = btn.getAttribute('data-post'); toggleComments(id); }); });
+  }catch(e){ document.getElementById('status').textContent = 'Failed to load feed'; }
+}
+function renderPost(p){ const user = p.user && p.user.username ? p.user.username : 'anon'; const created = p.createdAt?new Date(p.createdAt).toLocaleString():'';
+  const thumb = p.thumbnailUrl?`<img class="post-thumb" src="${p.thumbnailUrl}" alt="thumb">` : '';
+  const content = p.content?`<div style="padding:8px 0">${p.content}</div>`:'';
+  const id = p._id || p.id || '';
+      const likeCount = (p.likes && p.likes.length) ? p.likes.length : 0;
+      return `<div class="card" id="post-${id}"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:44px;height:44px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">${(user||'U').charAt(0).toUpperCase()}</div><div><div style="font-weight:600"><a href="/profile.html?user=${encodeURIComponent(user)}">${user}</a></div><div class="small muted">${created}</div></div></div>${thumb}${content}<div style="margin-top:8px"><button class="btn" onclick="likePost('${id}')">♡ Like</button> <span class="small muted" style="margin-left:8px">${likeCount} likes</span> <button class="btn" onclick="openClip('${p.clipUrl||''}')">▶ Watch</button> <button class="btn" data-comment-toggle data-post="${id}">Comments</button></div><div id="comments-${id}" class="card" style="display:none;margin-top:8px"></div></div>`;
+}
+    let loadingMore = false; let currentPage = 0;
+    async function loadMore(){ if(loadingMore) return; loadingMore = true; currentPage++; const el=document.getElementById('feed'); try{ const r = await getJSON('/api/feed?page='+currentPage+'&limit=10', true); if(!r.ok) { loadingMore=false; return; } const posts = await r.json(); if(!posts || !posts.length){ document.getElementById('status').textContent='No more posts'; loadingMore=false; return; } posts.forEach(p=> el.insertAdjacentHTML('beforeend', renderPost(p))); document.querySelectorAll('[data-comment-toggle]').forEach(btn=>{ btn.addEventListener('click', ()=>{ const id = btn.getAttribute('data-post'); toggleComments(id); }); }); }catch(e){ } loadingMore=false; }
+    window.addEventListener('scroll', ()=>{ if((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200){ loadMore(); } });
+
+    async function toggleComments(postId){
+      const wrap = document.getElementById('comments-'+postId); if(!wrap) return;
+      if(wrap.style.display==='block'){ wrap.style.display='none'; wrap.innerHTML=''; return; }
+      wrap.style.display='block'; wrap.innerHTML='Loading comments...';
+      try{
+        const r = await getJSON('/api/post/'+encodeURIComponent(postId) + '/comments');
+        const comments = await r.json();
+        wrap.innerHTML = `<div style="font-weight:700;margin-bottom:8px">Comments</div>` + (comments.length? comments.map(c=>`<div style="padding:6px 0"><strong>${c.user.username}</strong> <div class="small muted">${new Date(c.createdAt).toLocaleString()}</div><div>${c.text}</div><div style="margin-top:6px"><button class="btn small" onclick="reportComment('${c._id}')">Report</button></div></div>`).join('') : '<div class="small muted">No comments</div>');
+        wrap.insertAdjacentHTML('beforeend', `<div style="margin-top:8px"><textarea id="newc-${postId}" class="input" rows="2" placeholder="Write a comment"></textarea><div style="margin-top:6px"><button class="btn" onclick="postComment('${postId}')">Post comment</button></div></div>`);
+      }catch(e){ wrap.innerHTML='Failed to load comments'; }
+    }
+    async function postComment(postId){ const ta = document.getElementById('newc-'+postId); if(!ta) return; const txt = ta.value.trim(); if(!txt){ alert('enter comment'); return; } try{ const r = await postJSON('/api/post/'+encodeURIComponent(postId)+'/comment', { text: txt }, true); if(r.ok){ const c = await r.json(); toggleComments(postId); } else { alert('failed'); } }catch(e){ alert('err') } }
+    async function reportComment(commentId){ const reason = prompt('Reason (optional)'); if(reason===null) return; try{ const r = await postJSON('/api/comment/'+encodeURIComponent(commentId)+'/report', { reason }, true); if(r.ok){ alert('Reported — moderators will review'); } else { const j = await r.json(); alert('Report failed: '+(j && j.error ? j.error : r.status)); } }catch(e){ alert('error') } }
+async function likePost(id){ if(!token()){ alert('login required'); return; } try{ const r = await postJSON('/api/like/'+id, {}, true); if(r.ok) loadFeed(); else alert('failed'); }catch(e){alert('err')} }
+function openClip(url){ if(!url) return alert('no clip'); window.open(url,'_blank'); }
+loadFeed(); updateHeader();
+</script>
+</body></html>
